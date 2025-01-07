@@ -42,6 +42,19 @@ You can restrict the max current for a strip/matrix on the program level.
 - Games
 - More effects
 
+### License
+
+This project is licensed under the Apache License, Version 2.0.
+
+You are free to use, modify, and distribute this software under the terms of the Apache 2.0 License. See the [LICENSE](LICENSE.txt) file for details.
+
+#### Key Points:
+- **Attribution**: You must give proper credit to the original author(s).
+- **Modifications**: If you modify the code, you must clearly indicate what changes were made.
+- **No Liability**: The software is provided "as-is" without any warranty.
+
+For more information, refer to the full [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0).
+
 
 
 
