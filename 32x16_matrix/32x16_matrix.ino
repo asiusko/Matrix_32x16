@@ -5,28 +5,39 @@
 #include <Arduino.h>
 #include <Adafruit_SSD1306.h>
 
-#define AUDIO_IN_PIN 35               // Audio signal
-#define SENSOR_BTN_PIN 32             // Touch btn
-#define FFT_SAMPLES 512               // Must be a power of 2
-#define FFT_SAMPLING_FREQ 24000       // Hz, must be 40000 or less due to ADC conversion time. Determines maximum frequency that can be analysed by the FFT Fmax=sampleF/2.
-#define FFT_AMPLITUDE 10000           // Depending on your audio source level, you may need to alter this value. Can be used as a 'sensitivity' control.
-#define FFT_FILTERED_NOISE 1000       // Used as a crude noise filter, values below this are ignored
+#define AUDIO_IN_PIN 35          // Audio signal
+#define SENSOR_BTN_PIN 32        // Touch btn
+#define FFT_SAMPLES 512          // Must be a power of 2
+#define FFT_SAMPLING_FREQ 24000  // Hz, must be 40000 or less due to ADC conversion time. Determines maximum frequency that can be analysed by the FFT Fmax=sampleF/2.
+#define FFT_AMPLITUDE 10000      // Depending on your audio source level, you may need to alter this value. Can be used as a 'sensitivity' control.
+#define FFT_FILTERED_NOISE 1000  // Used as a crude noise filter, values below this are ignored
 
-#define LED_STRIP_NUMBERS 4           // Amount of strips or matrix
-#define LED_PIN_1 33                  // LED strip data
-#define LED_PIN_2 25                  // LED strip data
-#define LED_PIN_3 26                  // LED strip data
-#define LED_PIN_4 27                  // LED strip data
-#define LED_COLOR_ORDER GRB           // If colours look wrong, play with this
-#define LED_CHIPSET WS2812B           // LED strip type
-#define LED_MAX_MILLI_AMPS 9000       // Be careful with the amount of power here if running from USB port
-#define LED_VOLTS 5                   // Usually 5 or 12
-#define LED_NUM_BANDS 16              // To change this, you will need to change the bunch of if statements describing the mapping from bins to bands
-#define LED_MATRIX_HEIGHT 16
-#define LED_MATRIX_WIDTH 32
-#define LED_QUANTITY (LED_MATRIX_WIDTH * LED_MATRIX_HEIGHT)     // Total number of LEDs
-#define LED_BAR_WIDTH (LED_MATRIX_WIDTH / (LED_NUM_BANDS - 1))  // If width >= 8 light 1 LED width per bar, >= 16 light 2 LEDs width bar etc
-#define LED_TOP_ELEMENT (LED_MATRIX_HEIGHT - 0)                 // Don't allow the bars to go offscreen
+#define LED_MAX_BANDS 16         // To change this, you will need to change the bunch of if statements describing the mapping from bins to bands
+#define LED_STRIP_NUMBERS 4      // Amount of strips or matrix
+#define LED_MAX_MILLI_AMPS 9000  // Be careful with the amount of power here if running from USB port
+#define LED_VOLTS 5              // Usually 5 or 12
+
+#define LED_1_PIN 33           // LED strip data
+#define LED_1_COLOR_ORDER GRB  // If colours look wrong, play with this
+#define LED_1_CHIPSET WS2812B  // LED strip type
+#define LED_1_MATRIX_HEIGHT 14
+#define LED_1_MATRIX_WIDTH 14
+#define LED_1_QUANTITY (LED_1_MATRIX_WIDTH * LED_1_MATRIX_HEIGHT)   // Total number of LEDs
+#define LED_1_BAR_WIDTH (LED_1_MATRIX_WIDTH / (LED_MAX_BANDS - 1))  // If width >= 8 light 1 LED width per bar, >= 16 light 2 LEDs width bar etc
+#define LED_1_TOP_ELEMENT (LED_1_MATRIX_HEIGHT - 0)                 // Don't allow the bars to go offscreen
+
+#define LED_2_PIN 25           // LED strip data
+#define LED_2_COLOR_ORDER GRB  // If colours look wrong, play with this
+#define LED_2_CHIPSET WS2812B  // LED strip type
+#define LED_2_MATRIX_HEIGHT 16
+#define LED_2_MATRIX_WIDTH 32
+#define LED_2_QUANTITY (LED_1_MATRIX_WIDTH * LED_1_MATRIX_HEIGHT)   // Total number of LEDs
+#define LED_2_BAR_WIDTH (LED_1_MATRIX_WIDTH / (LED_MAX_BANDS - 1))  // If width >= 8 light 1 LED width per bar, >= 16 light 2 LEDs width bar etc
+#define LED_2_TOP_ELEMENT (LED_1_MATRIX_HEIGHT - 0)                 // Don't allow the bars to go offscreen
+
+#define LED_3_PIN 26  // LED strip data
+#define LED_4_PIN 27  // LED strip data
+
 #define OLED_WIDTH 128
 #define OLED_HEIGHT 64
 #define TIMER_AUTO_CHANGE (60 * 1000)  // 60 second
@@ -48,12 +59,12 @@ byte encoderValue = 1;
 const byte BRIGHTNESS_SETTINGS[(ROTARY_ENCODER_MAX_VALUE + 1)] = { 0, 1, 2, 5, 10, 20, 40, 60, 80, 100, 125, 150, 175, 200, 225, 250 };
 const String ENCODER_MODE[3] = { "DISPLAY", "SCROLL", "CHANGE VALUE" };
 byte encoderMode = 0;
-const String ENCODER_BTN_MODE[3] = {"SELECT LED", "SELECT", "CONFIRM" };
+const String ENCODER_BTN_MODE[3] = { "SELECT LED", "SELECT", "CONFIRM" };
 byte encoderBtnMode = 0;
-const String SETTINGS[LED_STRIP_NUMBERS + 1] = { "LED 1", "LED 2", "LED 3" ,"LED 4", "LOGS" }; // LED_STRIP_NUMBERS + 1(Logs)
+const String SETTINGS[LED_STRIP_NUMBERS + 1] = { "LED 1", "LED 2", "LED 3", "LED 4", "LOGS" };  // LED_STRIP_NUMBERS + 1(Logs)
 const byte settingsPropsLength = 6;
 const String LED_SETTINGS[settingsPropsLength + 1] = { "MODE", "BRIGHTNESS", "PEAKS", "EQUALIZER MODE", "AUTO CHANGE", "NOISE LEVEL", "EXIT" };  // settingsPropsLength + 1(Exit)
-const String LED_MODE[4] = { "EQUALIZER", "TIME", "LIGHT" ,"GAME" };
+const String LED_MODE[4] = { "EQUALIZER", "TIME", "LIGHT", "GAME" };
 
 byte LED_SETTINGS_VALUE[LED_STRIP_NUMBERS][settingsPropsLength] = {
   { 0, 10, 1, 1, 0, 1 },
@@ -68,9 +79,9 @@ byte newEncoderValue = LED_SETTINGS_VALUE[currentSetting][ledSettingProperty];
 
 // Sampling and FFT
 unsigned int sampling_period_us;
-byte peak[LED_NUM_BANDS] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-int oldBarHeights[LED_NUM_BANDS] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-int bandValues[LED_NUM_BANDS] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+byte peak[LED_MAX_BANDS] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+int oldBarHeights[LED_MAX_BANDS] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+int bandValues[LED_MAX_BANDS] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 double vReal[FFT_SAMPLES];
 double vImag[FFT_SAMPLES];
 unsigned long newTime;
@@ -80,29 +91,31 @@ ArduinoFFT<double> FFT = ArduinoFFT<double>(vReal, vImag, FFT_SAMPLES, FFT_SAMPL
 Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
 
 // FastLED
-CRGB leds[LED_QUANTITY];
+CRGB ledsConfiguration1[LED_1_QUANTITY];
+CRGB ledsConfiguration2[LED_2_QUANTITY];
+
 DEFINE_GRADIENT_PALETTE(purple_gp){
-  0, 0, 212, 255,       //blue
-  255, 179, 0, 255      //purple
+  0, 0, 212, 255,   //blue
+  255, 179, 0, 255  //purple
 };
 DEFINE_GRADIENT_PALETTE(outrun_gp){
-  0, 141, 0, 100,       //purple
-  127, 255, 192, 0,     //yellow
-  255, 0, 5, 255        //blue
+  0, 141, 0, 100,    //purple
+  127, 255, 192, 0,  //yellow
+  255, 0, 5, 255     //blue
 };
 DEFINE_GRADIENT_PALETTE(greenblue_gp){
-  0, 0, 255, 60,        //green
-  64, 0, 236, 255,      //cyan
-  128, 0, 5, 255,       //blue
-  192, 0, 236, 255,     //cyan
-  255, 0, 255, 60       //green
+  0, 0, 255, 60,     //green
+  64, 0, 236, 255,   //cyan
+  128, 0, 5, 255,    //blue
+  192, 0, 236, 255,  //cyan
+  255, 0, 255, 60    //green
 };
 DEFINE_GRADIENT_PALETTE(redyellow_gp){
-  0, 200, 200, 200,     //white
-  64, 255, 218, 0,      //yellow
-  128, 231, 0, 0,       //red
-  192, 255, 218, 0,     //yellow
-  255, 200, 200, 200    //white
+  0, 200, 200, 200,   //white
+  64, 255, 218, 0,    //yellow
+  128, 231, 0, 0,     //red
+  192, 255, 218, 0,   //yellow
+  255, 200, 200, 200  //white
 };
 CRGBPalette16 purplePal = purple_gp;
 CRGBPalette16 outrunPal = outrun_gp;
@@ -110,11 +123,18 @@ CRGBPalette16 greenbluePal = greenblue_gp;
 CRGBPalette16 heatPal = redyellow_gp;
 uint8_t colorTimer = 0;
 
-// FastLED_NeoMatrix - see https://github.com/marcmerlin/FastLED_NeoMatrix
-FastLED_NeoMatrix *matrix = new FastLED_NeoMatrix(leds, LED_MATRIX_WIDTH, LED_MATRIX_HEIGHT,
-                                                  NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_COLUMNS + NEO_MATRIX_ZIGZAG);
+const int LED_TOP_ELEMENTS[LED_STRIP_NUMBERS] = { LED_1_TOP_ELEMENT, LED_2_TOP_ELEMENT, LED_1_TOP_ELEMENT, LED_1_TOP_ELEMENT };
+const int LED_BAR_WIDTHS[LED_STRIP_NUMBERS] = { LED_1_BAR_WIDTH, LED_2_BAR_WIDTH, LED_1_BAR_WIDTH, LED_1_BAR_WIDTH };
+const int LED_MATRIX_HEIGHTS[LED_STRIP_NUMBERS] = { LED_1_MATRIX_HEIGHT, LED_2_MATRIX_HEIGHT, LED_1_MATRIX_HEIGHT, LED_1_MATRIX_HEIGHT };
+const int LED_MATRIX_WIDTHS[LED_STRIP_NUMBERS] = { LED_1_MATRIX_WIDTH, LED_2_MATRIX_WIDTH, LED_1_MATRIX_WIDTH, LED_1_MATRIX_WIDTH };
 
-String timeString = "14:55:44";     // TODO get time from web
+// FastLED_NeoMatrix - see https://github.com/marcmerlin/FastLED_NeoMatrix
+FastLED_NeoMatrix *matrix1 = new FastLED_NeoMatrix(ledsConfiguration1, LED_1_MATRIX_WIDTH, LED_1_MATRIX_HEIGHT,
+                                                   NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_COLUMNS + NEO_MATRIX_ZIGZAG);
+FastLED_NeoMatrix *matrix2 = new FastLED_NeoMatrix(ledsConfiguration2, LED_2_MATRIX_WIDTH, LED_2_MATRIX_HEIGHT,
+                                                   NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_COLUMNS + NEO_MATRIX_ZIGZAG);
+
+String timeString = "14:55:44";  // TODO get time from web
 
 // has to be before setup()
 void IRAM_ATTR readEncoderISR() {
@@ -150,7 +170,8 @@ void setup() {
 
 
   // 32x16 WS2812 LED
-  FastLED.addLeds<LED_CHIPSET, LED_PIN_1, LED_COLOR_ORDER>(leds, LED_QUANTITY).setCorrection(TypicalSMD5050);
+  FastLED.addLeds<LED_1_CHIPSET, LED_1_PIN, LED_1_COLOR_ORDER>(ledsConfiguration1, LED_1_QUANTITY).setCorrection(TypicalSMD5050);
+  FastLED.addLeds<LED_2_CHIPSET, LED_2_PIN, LED_2_COLOR_ORDER>(ledsConfiguration2, LED_2_QUANTITY).setCorrection(TypicalSMD5050);
   FastLED.setMaxPowerInVoltsAndMilliamps(LED_VOLTS, LED_MAX_MILLI_AMPS);
   FastLED.setBrightness(BRIGHTNESS_SETTINGS[LED_SETTINGS_VALUE[currentSetting][1]]);
   FastLED.clear();
@@ -162,25 +183,68 @@ void loop() {
   rotaryLoop();
 
   // for (byte ledStripNumber = 0; ledStripNumber < LED_STRIP_NUMBERS; ledStripNumber++) {};
-  byte ledStripNumber = 0; // only the one led matrix
+  byte ledStripNumber = 0;  // only the one led matrix
 
-  switch(LED_SETTINGS_VALUE[ledStripNumber][0]) {
-    case(0): // Equalizer
-      buildEqualizer(ledStripNumber);
+
+  // no ways to manage ledsConfiguration and matrix in the arrays, esp32 memory allocation issue due to the huge objects
+  // TODO investigate and fix, get ledsConfiguration and matrix by iterator
+  switch (LED_SETTINGS_VALUE[ledStripNumber][0]) {
+    case (0):  // Equalizer
+      switch (ledStripNumber) {
+        case (0):
+          buildEqualizer(ledStripNumber, ledsConfiguration1, matrix1);
+          break;
+        case (1):
+          buildEqualizer(ledStripNumber, ledsConfiguration2, matrix2);
+          break;
+        case (2):
+          //
+          break;
+        case (3):
+          //
+          break;
+      }
       break;
-    case(1): // Time
-      buildTime(ledStripNumber, timeString);
+    case (1):  // Time
+      switch (ledStripNumber) {
+        case (0):
+          buildTime(ledStripNumber, timeString, matrix1);
+          break;
+        case (1):
+          buildTime(ledStripNumber, timeString, matrix2);
+          break;
+        case (2):
+          //
+          break;
+        case (3):
+          //
+          break;
+      }
       break;
-    case(2): // Light
-      buildLight(ledStripNumber);
+    case (2):  // Light
+      switch (ledStripNumber) {
+        case (0):
+          buildLight(ledStripNumber, matrix2);
+          break;
+        case (1):
+          buildLight(ledStripNumber, matrix2);
+          break;
+        case (2):
+          //
+          break;
+        case (3):
+          //
+          break;
+      }
       break;
-    case(3): // Game
+    case (3):  // Game
       // buildGame(ledStripNumber);
       break;
   }
 
   EVERY_N_MILLISECONDS(TIMER_DECAY_PEAK) {
-    for (byte band = 0; band < LED_NUM_BANDS; band++) if (peak[band] > 0) peak[band] -= 1;
+    for (byte band = 0; band < LED_MAX_BANDS; band++)
+      if (peak[band] > 0) peak[band] -= 1;
     colorTimer++;
   }
 
