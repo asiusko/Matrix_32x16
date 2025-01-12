@@ -1,4 +1,4 @@
-void buildEqualizer(byte led_strip_number) {
+void buildEqualizer(byte led_strip_number, CRGB* ledsConfiguration, FastLED_NeoMatrix* matrix) {
   // settings
   byte peaksMode = LED_SETTINGS_VALUE[led_strip_number][2];
   byte equalizerMode = LED_SETTINGS_VALUE[led_strip_number][3];
@@ -8,7 +8,7 @@ void buildEqualizer(byte led_strip_number) {
   if (equalizerMode != 6) FastLED.clear();
 
   // Reset bandValues[]
-  for (int i = 0; i < LED_NUM_BANDS; i++) {
+  for (int i = 0; i < LED_MAX_BANDS; i++) {
     bandValues[i] = 0;
   }
 
@@ -52,39 +52,39 @@ void buildEqualizer(byte led_strip_number) {
 
 
   // Process the FFT data into bar heights
-  for (byte band = 0; band < LED_NUM_BANDS; band++) {
+  for (byte band = 0; band < LED_MAX_BANDS; band++) {
 
     // Scale the bars for the display
     int barHeight = bandValues[band] / (FFT_AMPLITUDE * noiseLevel);
-    if (barHeight > LED_TOP_ELEMENT) barHeight = LED_TOP_ELEMENT;
+    if (barHeight > LED_TOP_ELEMENTS[led_strip_number]) barHeight = LED_TOP_ELEMENTS[led_strip_number];
 
     // Small amount of averaging between frames
     barHeight = ((oldBarHeights[band] * 1) + barHeight) / 2;
 
     // Move peak up
     if (barHeight > peak[band]) {
-      peak[band] = min(LED_TOP_ELEMENT, barHeight);
+      peak[band] = min(LED_TOP_ELEMENTS[led_strip_number], barHeight);
     }
 
     // Draw bars
     switch (equalizerMode) {
       case 1:
-        rainbowBars(band, barHeight);
+        rainbowBars(led_strip_number, band, barHeight, matrix);
         break;
       case 2:
         // No bars on this one
         break;
       case 3:
-        purpleBars(band, barHeight);
+        purpleBars(led_strip_number, band, barHeight, matrix);
         break;
       case 4:
-        centerBars(band, barHeight);
+        centerBars(led_strip_number, band, barHeight, matrix);
         break;
       case 5:
-        changingBars(band, barHeight);
+        changingBars(led_strip_number, band, barHeight, matrix);
         break;
       case 6:
-        waterfall(band);
+        waterfall(led_strip_number, band, ledsConfiguration, matrix);
         break;
     }
 
@@ -92,13 +92,13 @@ void buildEqualizer(byte led_strip_number) {
     if (equalizerMode != 4 && equalizerMode != 6) {
       switch (peaksMode) {
         case 1:
-          whitePeak(band);
+          whitePeak(led_strip_number, band, matrix);
           break;
         case 2:
-          outrunPeak(band);
+          outrunPeak(led_strip_number, band, matrix);
           break;
         case 3:
-          whitePeak(band);
+          whitePeak(led_strip_number, band, matrix);
           break;
       }
     }
@@ -109,38 +109,38 @@ void buildEqualizer(byte led_strip_number) {
 }
 
 // PATTERNS
-void rainbowBars(int band, int barHeight) {
-  int xStart = LED_BAR_WIDTH * band;
-  for (int x = xStart; x < xStart + LED_BAR_WIDTH; x++) {
-    for (int y = LED_TOP_ELEMENT; y >= LED_TOP_ELEMENT - barHeight; y--) {
-      matrix->drawPixel(x, y, CHSV((x / LED_BAR_WIDTH) * (255 / LED_NUM_BANDS), 255, 255));
+void rainbowBars(byte led_strip_number, int band, int barHeight, FastLED_NeoMatrix* matrix) {
+  int xStart = LED_BAR_WIDTHS[led_strip_number] * band;
+  for (int x = xStart; x < xStart + LED_BAR_WIDTHS[led_strip_number]; x++) {
+    for (int y = LED_TOP_ELEMENTS[led_strip_number]; y >= LED_TOP_ELEMENTS[led_strip_number] - barHeight; y--) {
+      matrix->drawPixel(x, y, CHSV((x / LED_BAR_WIDTHS[led_strip_number]) * (255 / LED_MAX_BANDS), 255, 255));
     }
   }
 }
 
-void purpleBars(int band, int barHeight) {
-  int xStart = LED_BAR_WIDTH * band;
-  for (int x = xStart; x < xStart + LED_BAR_WIDTH; x++) {
-    for (int y = LED_TOP_ELEMENT; y >= LED_TOP_ELEMENT - barHeight; y--) {
+void purpleBars(byte led_strip_number, int band, int barHeight, FastLED_NeoMatrix* matrix) {
+  int xStart = LED_BAR_WIDTHS[led_strip_number] * band;
+  for (int x = xStart; x < xStart + LED_BAR_WIDTHS[led_strip_number]; x++) {
+    for (int y = LED_TOP_ELEMENTS[led_strip_number]; y >= LED_TOP_ELEMENTS[led_strip_number] - barHeight; y--) {
       matrix->drawPixel(x, y, ColorFromPalette(purplePal, y * (255 / (barHeight + 1))));
     }
   }
 }
 
-void changingBars(int band, int barHeight) {
-  int xStart = LED_BAR_WIDTH * band;
-  for (int x = xStart; x < xStart + LED_BAR_WIDTH; x++) {
-    for (int y = LED_TOP_ELEMENT; y >= LED_TOP_ELEMENT - barHeight; y--) {
-      matrix->drawPixel(x, y, CHSV(y * (255 / LED_MATRIX_HEIGHT) + colorTimer, 255, 255));
+void changingBars(byte led_strip_number, int band, int barHeight, FastLED_NeoMatrix* matrix) {
+  int xStart = LED_BAR_WIDTHS[led_strip_number] * band;
+  for (int x = xStart; x < xStart + LED_BAR_WIDTHS[led_strip_number]; x++) {
+    for (int y = LED_TOP_ELEMENTS[led_strip_number]; y >= LED_TOP_ELEMENTS[led_strip_number] - barHeight; y--) {
+      matrix->drawPixel(x, y, CHSV(y * (255 / LED_MATRIX_HEIGHTS[led_strip_number]) + colorTimer, 255, 255));
     }
   }
 }
 
-void centerBars(int band, int barHeight) {
-  int xStart = LED_BAR_WIDTH * band;
-  for (int x = xStart; x < xStart + LED_BAR_WIDTH; x++) {
+void centerBars(byte led_strip_number, int band, int barHeight, FastLED_NeoMatrix* matrix) {
+  int xStart = LED_BAR_WIDTHS[led_strip_number] * band;
+  for (int x = xStart; x < xStart + LED_BAR_WIDTHS[led_strip_number]; x++) {
     if (barHeight % 2 == 0) barHeight--;
-    int yStart = ((LED_MATRIX_HEIGHT - barHeight) / 2);
+    int yStart = ((LED_MATRIX_HEIGHTS[led_strip_number] - barHeight) / 2);
     for (int y = yStart; y <= (yStart + barHeight); y++) {
       int colorIndex = constrain((y - yStart) * (255 / barHeight), 0, 255);
       matrix->drawPixel(x, y, ColorFromPalette(heatPal, colorIndex));
@@ -148,38 +148,38 @@ void centerBars(int band, int barHeight) {
   }
 }
 
-void whitePeak(int band) {
-  int xStart = LED_BAR_WIDTH * band;
-  int peakHeight = LED_TOP_ELEMENT - peak[band] - 1;
-  for (int x = xStart; x < xStart + LED_BAR_WIDTH; x++) {
+void whitePeak(byte led_strip_number, int band, FastLED_NeoMatrix* matrix) {
+  int xStart = LED_BAR_WIDTHS[led_strip_number] * band;
+  int peakHeight = LED_TOP_ELEMENTS[led_strip_number] - peak[band] - 1;
+  for (int x = xStart; x < xStart + LED_BAR_WIDTHS[led_strip_number]; x++) {
     matrix->drawPixel(x, peakHeight, CHSV(0, 0, 255));
   }
 }
 
-void outrunPeak(int band) {
-  int xStart = LED_BAR_WIDTH * band;
-  int peakHeight = LED_TOP_ELEMENT - peak[band] - 1;
-  for (int x = xStart; x < xStart + LED_BAR_WIDTH; x++) {
-    matrix->drawPixel(x, peakHeight, ColorFromPalette(outrunPal, peakHeight * (255 / LED_MATRIX_HEIGHT)));
+void outrunPeak(byte led_strip_number, int band, FastLED_NeoMatrix* matrix) {
+  int xStart = LED_BAR_WIDTHS[led_strip_number] * band;
+  int peakHeight = LED_TOP_ELEMENTS[led_strip_number] - peak[band] - 1;
+  for (int x = xStart; x < xStart + LED_BAR_WIDTHS[led_strip_number]; x++) {
+    matrix->drawPixel(x, peakHeight, ColorFromPalette(outrunPal, peakHeight * (255 / LED_MATRIX_HEIGHTS[led_strip_number])));
   }
 }
 
-void waterfall(int band) {
-  int xStart = LED_BAR_WIDTH * band;
+void waterfall(byte led_strip_number, int band, CRGB* ledsConfiguration, FastLED_NeoMatrix* matrix) {
+  int xStart = LED_BAR_WIDTHS[led_strip_number] * band;
   double highestBandValue = 60000;  // to calibrate the waterfall
 
   // Draw bottom line
-  for (int x = xStart; x < xStart + LED_BAR_WIDTH; x++) {
+  for (int x = xStart; x < xStart + LED_BAR_WIDTHS[led_strip_number]; x++) {
     matrix->drawPixel(x, 0, CHSV(constrain(map(bandValues[band], 0, highestBandValue, 160, 0), 0, 160), 255, 255));
   }
 
   // Move screen up starting at 2nd row from top
-  if (band == LED_NUM_BANDS - 1) {
-    for (int y = LED_MATRIX_HEIGHT - 2; y >= 0; y--) {
-      for (int x = 0; x < LED_MATRIX_WIDTH; x++) {
+  if (band == LED_MAX_BANDS - 1) {
+    for (int y = LED_MATRIX_HEIGHTS[led_strip_number] - 2; y >= 0; y--) {
+      for (int x = 0; x < LED_MATRIX_WIDTHS[led_strip_number]; x++) {
         int pixelIndexY = matrix->XY(x, y + 1);
         int pixelIndex = matrix->XY(x, y);
-        leds[pixelIndexY] = leds[pixelIndex];
+        ledsConfiguration[pixelIndexY] = ledsConfiguration[pixelIndex];
       }
     }
   }
