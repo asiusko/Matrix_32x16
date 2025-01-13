@@ -30,7 +30,9 @@ You can restrict the max current for a strip/matrix on the program level.
 ![components](images/0003.jpg)
 
 ### Notes: 
-- Please use **[sample_test.ino](sampleTest/sample_test.ino)** and **[FFT.xlsx](sampleTest/FFT.xlsx)** to calculate Band values based on the microcontroller ADC speed.
+- Please use **[sample_test.ino](tools/sampleTest/sample_test.ino)** and **[FFT.xlsx](tools/sampleTest/FFT.xlsx)** to calculate Band values based on the microcontroller ADC speed.
+- If failed to mount SPIFFS file system. Run **[formatSPIFFS.ino](tools/formatSPIFFS/formatSPIFFS.ino)**
+- ESP-WROOM-32D configuration ![configuration](images/0004.png)
 
 ### TODO:
 - WEB control

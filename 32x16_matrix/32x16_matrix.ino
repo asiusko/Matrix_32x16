@@ -4,9 +4,21 @@
 #include <AiEsp32RotaryEncoder.h>
 #include <Arduino.h>
 #include <Adafruit_SSD1306.h>
+#include <NTPClient.h>
+#include <TimeLib.h>
+#include "FS.h"
+#include <SPIFFS.h>
+#include <OneButton.h>
+#include <Arduino_JSON.h>
+#include <WiFi.h>
+#include <WebServer.h>
+#include <HTTPClient.h>
+#include <WiFiUdp.h>
 
-#define AUDIO_IN_PIN 35          // Audio signal
-#define SENSOR_BTN_PIN 32        // Touch btn
+#define BOARD_LED_PIN 2    // Built-in LED on most ESP32 boards 2 pin
+#define AUDIO_IN_PIN 35    // Audio signal
+#define SENSOR_BTN_PIN 32  // Touch btn
+
 #define FFT_SAMPLES 512          // Must be a power of 2
 #define FFT_SAMPLING_FREQ 24000  // Hz, must be 40000 or less due to ADC conversion time. Determines maximum frequency that can be analysed by the FFT Fmax=sampleF/2.
 #define FFT_AMPLITUDE 10000      // Depending on your audio source level, you may need to alter this value. Can be used as a 'sensitivity' control.
@@ -51,6 +63,13 @@
 #define ROTARY_ENCODER_NOISE 10
 #define ROTARY_ENCODER_MIN_VALUE 0
 #define ROTARY_ENCODER_MAX_VALUE 15
+
+#define AP_WIFI_SSID "MATRIX_32x16"    // Access Point SSID
+#define AP_WIFI_PASSWORD "0123456789"  // Access Point Password
+
+#define TIME_ZONE_OFFSET 3600            // +1 hour UK offset to UTC
+#define CONFIRM_CLICK_ACTION_TIME 10000  // to confirm action
+#define UPDATE_TIME_LOOP 1000
 
 AiEsp32RotaryEncoder rotaryEncoder = AiEsp32RotaryEncoder(ROTARY_ENCODER_A_PIN, ROTARY_ENCODER_B_PIN, ROTARY_ENCODER_BUTTON_PIN, ROTARY_ENCODER_VCC_PIN, ROTARY_ENCODER_STEPS);
 byte encoderValue = 1;
@@ -131,7 +150,25 @@ const int LED_MATRIX_WIDTHS[LED_STRIP_NUMBERS] = { LED_1_MATRIX_WIDTH, LED_2_MAT
 FastLED_NeoMatrix *matrix = new FastLED_NeoMatrix(ledsConfiguration1, LED_1_MATRIX_WIDTH, LED_1_MATRIX_HEIGHT, 1, 1,
                                                   NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_COLUMNS + NEO_MATRIX_ZIGZAG);
 
-String timeString = "14:55:44";  // TODO get time from web
+// Define NTP Client to get time
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 0);
+
+// Sensor button
+OneButton sensorButton(SENSOR_BTN_PIN, false);
+bool isReadyToResetWiFi = false;
+bool isLoggerActive = false;
+unsigned long resetCounterMillis = 0;
+
+// WiFi connection
+bool connectionDefined = false;
+String savedSsid = "";
+String savedPass = "";
+WebServer server(80);
+HTTPClient http;
+WiFiClient client;
+
+String timeString = "";
 
 // has to be before setup()
 void IRAM_ATTR readEncoderISR() {
@@ -139,8 +176,23 @@ void IRAM_ATTR readEncoderISR() {
 }
 
 void setup() {
-  delay(100);
+  // Wait for 1 second before initializing Serial to start hardware SPIFFS
+  delay(2000);
   Serial.begin(115200);
+
+    // Initialize file system
+  if (!SPIFFS.begin()) {
+    logLn("Failed to mount file system");
+    return;
+  }
+
+  pinMode(BOARD_LED_PIN, OUTPUT);
+  digitalWrite(BOARD_LED_PIN, HIGH);
+
+  // Initialize BUTTON
+  sensorButton.attachClick(sensorButtonSingleClick);
+  sensorButton.attachDoubleClick(sensorButtonDoubleClick);
+  sensorButton.attachLongPressStop(sensorButtonLongPress);
 
   // Initialize OLED display (with I2C address 0x3C)
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
@@ -151,7 +203,7 @@ void setup() {
   display.clearDisplay();
   renderOLED();
 
-  //rotary encoder
+  // rotary encoder
   rotaryEncoder.begin();
   rotaryEncoder.setup(readEncoderISR);
   rotaryEncoder.setBoundaries(ROTARY_ENCODER_MIN_VALUE, ROTARY_ENCODER_MAX_VALUE, true);  //minValue, maxValue, circleValues true|false (when max go to min and vice versa)
@@ -166,16 +218,74 @@ void setup() {
                                         //rotaryEncoder.setAcceleration(250); //or set the value - larger number = more acceleration; 0 or 1 means disabled acceleration
 
 
-  // 32x16 WS2812 LED
+  // LED
   FastLED.addLeds<LED_1_CHIPSET, LED_1_PIN, LED_1_COLOR_ORDER>(ledsConfiguration1, LED_1_QUANTITY).setCorrection(TypicalSMD5050);
   FastLED.setMaxPowerInVoltsAndMilliamps(LED_VOLTS, LED_MAX_MILLI_AMPS);
   FastLED.setBrightness(BRIGHTNESS_SETTINGS[LED_SETTINGS_VALUE[currentSetting][1]]);
   FastLED.clear();
 
   sampling_period_us = round(1000000 * (1.0 / FFT_SAMPLING_FREQ));
+
+  logLn("SPIFFS is mounted");
+  connectionDefined = false;                      // Initial Connection state before checking saved data
+  File configFile = SPIFFS.open("/config.json");  // Read Configuration data from the JSON file
+
+  if (!configFile) {
+    logLn("Failed to open config file for reading");
+  } else {
+    String jsonStr = configFile.readString();  // Read the contents of the file into a string
+    Serial.println("jsonStr");
+    Serial.println(jsonStr);
+    configFile.close();                        // Close the file to reduce memory usage
+    JSONVar jsonData = JSON.parse(jsonStr);    // Deserialize the JSON string into an Arduino_JSON object
+
+    if (!JSON.typeof(jsonData) || JSON.typeof(jsonData) == "undefined") {
+      logLn("Failed to parse JSON data");
+    } else {
+      const char* ssidChar = jsonData["ssid"];
+      const char* passChar = jsonData["pass"];
+
+      savedSsid = String(ssidChar);
+      savedPass = String(passChar);
+
+      connectionDefined = savedSsid.length() && savedPass.length() ? true : false;
+      logLn("connectionDefined: " + String(connectionDefined));
+    }
+  }
+
+  // If no Config, run initial page with a wifi form
+  // Setting the AP Mode with SSID, Password, and Max Connection Limit
+  if (!connectionDefined) {
+    logLn("Create a WiFi AP");
+
+    if (WiFi.softAP(AP_WIFI_SSID, AP_WIFI_PASSWORD) == true) {
+      logLn("WEB: " + WiFi.softAPIP().toString());
+      logLn("WIFI: " + String(WiFi.softAPSSID()) + "   PASS: " + String(AP_WIFI_PASSWORD));
+      WiFi.mode(WIFI_AP);
+    } else {
+      logLn("Unable to Create AP");
+    }
+
+    // Route for the setup WiFi page
+    server.on("/", HTTP_GET, defineWiFi);
+    // Route for getting data
+    server.on("/configure", HTTP_POST, saveDataAndConnectToWifi);
+    // Route to restart
+    server.on("/restart", HTTP_POST, restartESP);
+    server.begin();
+  } else {
+    // Connect to Wi-Fi
+    Serial.println("Connect to Wi-Fi");
+    connectToWifi(savedSsid, savedPass);
+    // Start NTP client
+    timeClient.begin();
+    delay(1000);         // wait time from server
+    updateTimeOffset();  // set summer/winter time
+  }
 }
 
 void loop() {
+  server.handleClient();
   rotaryLoop();
 
   for (byte ledStripNumber = 0; ledStripNumber < LED_STRIP_NUMBERS; ledStripNumber++) {
@@ -259,4 +369,106 @@ void loop() {
       }
     }
   }
+
+  // update time
+  EVERY_N_MILLISECONDS(UPDATE_TIME_LOOP){
+    timeString = timeClient.getFormattedTime();
+  }
+
+  EVERY_N_MILLISECONDS(CONFIRM_CLICK_ACTION_TIME) {
+    if (isReadyToResetWiFi) {
+      isReadyToResetWiFi = false;
+
+      logLn("Reset canceled by time");
+    }
+  }
+
+  EVERY_N_MILLISECONDS(UPDATE_TIME_LOOP*60){    
+    timeClient.update();
+  }
 }
+
+// WiFi Access Point
+// TODO move to separate file
+const char* wifiConfigPage = R"(
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Wi-Fi Configuration</title>
+      <style>
+          body {
+              font-family: Arial, sans-serif;
+              margin: 0;
+              padding: 0;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              height: 100vh;
+              background: linear-gradient(to bottom, #9fb9d5, #d2e0c3) !important;
+          }
+
+          .container {
+              background-color: white;
+              padding: 20px;
+              border-radius: 8px;
+              box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+              max-width: 400px;
+              width: 100%;
+          }
+
+          h2 {
+              text-align: center;
+              margin-bottom: 20px;
+          }
+
+          label {
+              font-size: 16px;
+              margin-bottom: 5px;
+              display: inline-block;
+          }
+
+          input[type="text"] {
+              width: 100%;
+              padding: 10px;
+              margin: 10px 0;
+              border: 1px solid #ccc;
+              border-radius: 4px;
+              box-sizing: border-box;
+          }
+
+          input[type="submit"] {
+              width: 100%;
+              background-color: #4CAF50;
+              color: white;
+              padding: 12px 20px;
+              border: none;
+              border-radius: 4px;
+              cursor: pointer;
+              font-size: 16px;
+          }
+
+          input[type="submit"]:hover {
+              background-color: #45a049;
+          }
+      </style>
+  </head>
+  <body>
+  <div class="container">
+      <h2>Wi-Fi Configuration</h2>
+      <form action="/configure" method="post">
+          <label for="ssid">SSID:</label><br>
+          <input type="text" id="ssid" name="ssid"><br><br>
+          <label for="password">Password:</label><br>
+          <input type="text" id="password" name="password"><br><br>
+          <input type="submit" value="Connect">
+      </form>
+      <br>
+      <form action="/restart" method="post">
+          <input type="submit" value="Restart ESP">
+      </form>
+  </div>
+  </body>
+</html>
+)";
