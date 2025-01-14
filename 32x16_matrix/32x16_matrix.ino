@@ -20,8 +20,8 @@
 #define LED_1_PIN 33           // LED strip data
 #define LED_1_COLOR_ORDER GRB  // If colours look wrong, play with this
 #define LED_1_CHIPSET WS2812B  // LED strip type
-#define LED_1_MATRIX_HEIGHT 14
-#define LED_1_MATRIX_WIDTH 14
+#define LED_1_MATRIX_HEIGHT 16
+#define LED_1_MATRIX_WIDTH 32
 #define LED_1_QUANTITY (LED_1_MATRIX_WIDTH * LED_1_MATRIX_HEIGHT)   // Total number of LEDs
 #define LED_1_BAR_WIDTH (LED_1_MATRIX_WIDTH / (LED_MAX_BANDS - 1))  // If width >= 8 light 1 LED width per bar, >= 16 light 2 LEDs width bar etc
 #define LED_1_TOP_ELEMENT (LED_1_MATRIX_HEIGHT - 0)                 // Don't allow the bars to go offscreen
@@ -29,11 +29,11 @@
 #define LED_2_PIN 25           // LED strip data
 #define LED_2_COLOR_ORDER GRB  // If colours look wrong, play with this
 #define LED_2_CHIPSET WS2812B  // LED strip type
-#define LED_2_MATRIX_HEIGHT 16
-#define LED_2_MATRIX_WIDTH 32
-#define LED_2_QUANTITY (LED_1_MATRIX_WIDTH * LED_1_MATRIX_HEIGHT)   // Total number of LEDs
-#define LED_2_BAR_WIDTH (LED_1_MATRIX_WIDTH / (LED_MAX_BANDS - 1))  // If width >= 8 light 1 LED width per bar, >= 16 light 2 LEDs width bar etc
-#define LED_2_TOP_ELEMENT (LED_1_MATRIX_HEIGHT - 0)                 // Don't allow the bars to go offscreen
+#define LED_2_MATRIX_HEIGHT 14
+#define LED_2_MATRIX_WIDTH 14
+#define LED_2_QUANTITY (LED_2_MATRIX_WIDTH * LED_2_MATRIX_HEIGHT)   // Total number of LEDs
+#define LED_2_BAR_WIDTH (LED_2_MATRIX_WIDTH / (LED_MAX_BANDS - 1))  // If width >= 8 light 1 LED width per bar, >= 16 light 2 LEDs width bar etc
+#define LED_2_TOP_ELEMENT (LED_2_MATRIX_HEIGHT - 0)                 // Don't allow the bars to go offscreen
 
 #define LED_3_PIN 26  // LED strip data
 #define LED_4_PIN 27  // LED strip data
@@ -92,7 +92,6 @@ Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
 
 // FastLED
 CRGB ledsConfiguration1[LED_1_QUANTITY];
-CRGB ledsConfiguration2[LED_2_QUANTITY];
 
 DEFINE_GRADIENT_PALETTE(purple_gp){
   0, 0, 212, 255,   //blue
@@ -129,10 +128,8 @@ const int LED_MATRIX_HEIGHTS[LED_STRIP_NUMBERS] = { LED_1_MATRIX_HEIGHT, LED_2_M
 const int LED_MATRIX_WIDTHS[LED_STRIP_NUMBERS] = { LED_1_MATRIX_WIDTH, LED_2_MATRIX_WIDTH, LED_1_MATRIX_WIDTH, LED_1_MATRIX_WIDTH };
 
 // FastLED_NeoMatrix - see https://github.com/marcmerlin/FastLED_NeoMatrix
-FastLED_NeoMatrix *matrix1 = new FastLED_NeoMatrix(ledsConfiguration1, LED_1_MATRIX_WIDTH, LED_1_MATRIX_HEIGHT,
-                                                   NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_COLUMNS + NEO_MATRIX_ZIGZAG);
-FastLED_NeoMatrix *matrix2 = new FastLED_NeoMatrix(ledsConfiguration2, LED_2_MATRIX_WIDTH, LED_2_MATRIX_HEIGHT,
-                                                   NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_COLUMNS + NEO_MATRIX_ZIGZAG);
+FastLED_NeoMatrix *matrix = new FastLED_NeoMatrix(ledsConfiguration1, LED_1_MATRIX_WIDTH, LED_1_MATRIX_HEIGHT, 1, 1,
+                                                  NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_COLUMNS + NEO_MATRIX_ZIGZAG);
 
 String timeString = "14:55:44";  // TODO get time from web
 
@@ -171,7 +168,6 @@ void setup() {
 
   // 32x16 WS2812 LED
   FastLED.addLeds<LED_1_CHIPSET, LED_1_PIN, LED_1_COLOR_ORDER>(ledsConfiguration1, LED_1_QUANTITY).setCorrection(TypicalSMD5050);
-  FastLED.addLeds<LED_2_CHIPSET, LED_2_PIN, LED_2_COLOR_ORDER>(ledsConfiguration2, LED_2_QUANTITY).setCorrection(TypicalSMD5050);
   FastLED.setMaxPowerInVoltsAndMilliamps(LED_VOLTS, LED_MAX_MILLI_AMPS);
   FastLED.setBrightness(BRIGHTNESS_SETTINGS[LED_SETTINGS_VALUE[currentSetting][1]]);
   FastLED.clear();
@@ -182,64 +178,64 @@ void setup() {
 void loop() {
   rotaryLoop();
 
-  // for (byte ledStripNumber = 0; ledStripNumber < LED_STRIP_NUMBERS; ledStripNumber++) {};
-  byte ledStripNumber = 0;  // only the one led matrix
+  for (byte ledStripNumber = 0; ledStripNumber < LED_STRIP_NUMBERS; ledStripNumber++) {
+    // no ways to manage ledsConfiguration and matrix in the arrays, esp32 memory allocation issue due to the huge objects
+    // TODO investigate and fix, get ledsConfiguration and matrix by iterator
+    switch (LED_SETTINGS_VALUE[ledStripNumber][0]) {
+      case (0):  // Equalizer
+        switch (ledStripNumber) {
+          case (0):
+            buildEqualizer(ledStripNumber, ledsConfiguration1, matrix);
+            break;
+          case (1):
+            // buildEqualizer(ledStripNumber, ledsConfiguration2, matrix);
+            break;
+          case (2):
+            //
+            break;
+          case (3):
+            //
+            break;
+        }
+        break;
+      case (1):  // Time
+        switch (ledStripNumber) {
+          case (0):
+            buildTime(ledStripNumber, timeString, matrix);
+            break;
+          case (1):
+            buildTime(ledStripNumber, timeString, matrix);
+            break;
+          case (2):
+            //
+            break;
+          case (3):
+            //
+            break;
+        }
+        break;
+      case (2):  // Light
+        switch (ledStripNumber) {
+          case (0):
+            buildLight(ledStripNumber, matrix);
+            break;
+          case (1):
+            buildLight(ledStripNumber, matrix);
+            break;
+          case (2):
+            //
+            break;
+          case (3):
+            //
+            break;
+        }
+        break;
+      case (3):  // Game
+        // buildGame(ledStripNumber);
+        break;
+    }
 
-
-  // no ways to manage ledsConfiguration and matrix in the arrays, esp32 memory allocation issue due to the huge objects
-  // TODO investigate and fix, get ledsConfiguration and matrix by iterator
-  switch (LED_SETTINGS_VALUE[ledStripNumber][0]) {
-    case (0):  // Equalizer
-      switch (ledStripNumber) {
-        case (0):
-          buildEqualizer(ledStripNumber, ledsConfiguration1, matrix1);
-          break;
-        case (1):
-          buildEqualizer(ledStripNumber, ledsConfiguration2, matrix2);
-          break;
-        case (2):
-          //
-          break;
-        case (3):
-          //
-          break;
-      }
-      break;
-    case (1):  // Time
-      switch (ledStripNumber) {
-        case (0):
-          buildTime(ledStripNumber, timeString, matrix1);
-          break;
-        case (1):
-          buildTime(ledStripNumber, timeString, matrix2);
-          break;
-        case (2):
-          //
-          break;
-        case (3):
-          //
-          break;
-      }
-      break;
-    case (2):  // Light
-      switch (ledStripNumber) {
-        case (0):
-          buildLight(ledStripNumber, matrix2);
-          break;
-        case (1):
-          buildLight(ledStripNumber, matrix2);
-          break;
-        case (2):
-          //
-          break;
-        case (3):
-          //
-          break;
-      }
-      break;
-    case (3):  // Game
-      // buildGame(ledStripNumber);
-      break;
+    FastLED.show();
   }
 
   EVERY_N_MILLISECONDS(TIMER_DECAY_PEAK) {
@@ -263,6 +259,4 @@ void loop() {
       }
     }
   }
-
-  FastLED.show();
 }
