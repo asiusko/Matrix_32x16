@@ -23,6 +23,7 @@ You can restrict the max current for a strip/matrix on the program level.
 - Capacitor C2 470mf - power supply noise filter.
 - Resistors R1-R4 330Ω–470Ω - protection resistors, place the resistors as close as possible to the ESP32 pin for maximum effectiveness (voltage spikes can damage the first LED in the chain or cause erratic behavior)  
 - Diode D1 1N4001-1N4007 - to prevent LEDs power supply from USB port during firmware update.
+- R6-LDR resistors (voltage divider schema) are used take a light value on the analog pin. ADC resolution - 12 bits (values from 0 to 4095). 
 
 ### Images: 
 ![prototype](images/0001.jpg)
@@ -36,6 +37,7 @@ You can restrict the max current for a strip/matrix on the program level.
 
 ### TODO:
 - WEB control
+- Add sound output
 - Vertical/Horizontal mode
 - IR control
 - Light mode
