@@ -6,7 +6,7 @@
 #include <Adafruit_SSD1306.h>
 #include <NTPClient.h>
 #include <TimeLib.h>
-#include "FS.h"
+#include <FS.h>
 #include <SPIFFS.h>
 #include <OneButton.h>
 #include <Arduino_JSON.h>
@@ -14,6 +14,8 @@
 #include <WebServer.h>
 #include <HTTPClient.h>
 #include <WiFiUdp.h>
+
+#include <wifiConfigPage.h>
 
 #define BOARD_LED_PIN 2    // Built-in LED on most ESP32 boards 2 pin
 #define AUDIO_IN_PIN 35    // Audio signal
@@ -48,7 +50,6 @@
 #define LED_2_TOP_ELEMENT (LED_2_MATRIX_HEIGHT - 0)                 // Don't allow the bars to go offscreen
 
 #define LED_3_PIN 26  // LED strip data
-#define LED_4_PIN 27  // LED strip data
 
 #define OLED_WIDTH 128
 #define OLED_HEIGHT 64
@@ -71,6 +72,8 @@
 #define CONFIRM_CLICK_ACTION_TIME 10000  // to confirm action
 #define UPDATE_TIME_LOOP 1000
 
+int PHOTO_RESISTOR_PIN = 34;  // by some reason must be an int value
+
 AiEsp32RotaryEncoder rotaryEncoder = AiEsp32RotaryEncoder(ROTARY_ENCODER_A_PIN, ROTARY_ENCODER_B_PIN, ROTARY_ENCODER_BUTTON_PIN, ROTARY_ENCODER_VCC_PIN, ROTARY_ENCODER_STEPS);
 byte encoderValue = 1;
 
@@ -81,15 +84,15 @@ byte encoderMode = 0;
 const String ENCODER_BTN_MODE[3] = { "SELECT LED", "SELECT", "CONFIRM" };
 byte encoderBtnMode = 0;
 const String SETTINGS[LED_STRIP_NUMBERS + 1] = { "LED 1", "LED 2", "LED 3", "LED 4", "LOGS" };  // LED_STRIP_NUMBERS + 1(Logs)
-const byte settingsPropsLength = 6;
-const String LED_SETTINGS[settingsPropsLength + 1] = { "MODE", "BRIGHTNESS", "PEAKS", "EQUALIZER MODE", "AUTO CHANGE", "NOISE LEVEL", "EXIT" };  // settingsPropsLength + 1(Exit)
-const String LED_MODE[4] = { "EQUALIZER", "TIME", "LIGHT", "GAME" };
+const byte settingsPropsLength = 7;
+const String LED_SETTINGS[settingsPropsLength + 1] = { "MODE", "BRIGHTNESS", "PEAKS", "EQUALIZER MODE", "AUTO CHANGE", "NOISE LEVEL", "NIGHT MODE", "EXIT" };  // settingsPropsLength + 1(Exit)
+const String LED_MODE[6] = { "EQUALIZER", "TIME", "LIGHT", "GAME", "FIRE 1", "FIRE 2" };
 
 byte LED_SETTINGS_VALUE[LED_STRIP_NUMBERS][settingsPropsLength] = {
-  { 0, 10, 1, 1, 0, 1 },
-  { 0, 10, 1, 1, 0, 1 },
-  { 0, 10, 1, 1, 0, 1 },
-  { 0, 10, 1, 1, 0, 1 },
+  { 0, 10, 1, 1, 0, 1, 1 },
+  { 0, 10, 1, 1, 0, 1, 0 },
+  { 0, 10, 1, 1, 0, 1, 0 },
+  { 0, 10, 1, 1, 0, 1, 0 },
 };
 byte currentSetting = 0;
 byte ledSettingProperty = 0;
@@ -147,7 +150,7 @@ const int LED_MATRIX_HEIGHTS[LED_STRIP_NUMBERS] = { LED_1_MATRIX_HEIGHT, LED_2_M
 const int LED_MATRIX_WIDTHS[LED_STRIP_NUMBERS] = { LED_1_MATRIX_WIDTH, LED_2_MATRIX_WIDTH, LED_1_MATRIX_WIDTH, LED_1_MATRIX_WIDTH };
 
 // FastLED_NeoMatrix - see https://github.com/marcmerlin/FastLED_NeoMatrix
-FastLED_NeoMatrix *matrix = new FastLED_NeoMatrix(ledsConfiguration1, LED_1_MATRIX_WIDTH, LED_1_MATRIX_HEIGHT, 1, 1,
+FastLED_NeoMatrix* matrix = new FastLED_NeoMatrix(ledsConfiguration1, LED_1_MATRIX_WIDTH, LED_1_MATRIX_HEIGHT, 1, 1,
                                                   NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_TOP + NEO_MATRIX_LEFT + NEO_MATRIX_COLUMNS + NEO_MATRIX_ZIGZAG);
 
 // Define NTP Client to get time
@@ -180,7 +183,7 @@ void setup() {
   delay(2000);
   Serial.begin(115200);
 
-    // Initialize file system
+  // Initialize file system
   if (!SPIFFS.begin()) {
     logLn("Failed to mount file system");
     return;
@@ -236,8 +239,8 @@ void setup() {
     String jsonStr = configFile.readString();  // Read the contents of the file into a string
     Serial.println("jsonStr");
     Serial.println(jsonStr);
-    configFile.close();                        // Close the file to reduce memory usage
-    JSONVar jsonData = JSON.parse(jsonStr);    // Deserialize the JSON string into an Arduino_JSON object
+    configFile.close();                      // Close the file to reduce memory usage
+    JSONVar jsonData = JSON.parse(jsonStr);  // Deserialize the JSON string into an Arduino_JSON object
 
     if (!JSON.typeof(jsonData) || JSON.typeof(jsonData) == "undefined") {
       logLn("Failed to parse JSON data");
@@ -275,12 +278,14 @@ void setup() {
     server.begin();
   } else {
     // Connect to Wi-Fi
-    Serial.println("Connect to Wi-Fi");
-    connectToWifi(savedSsid, savedPass);
-    // Start NTP client
-    timeClient.begin();
-    delay(1000);         // wait time from server
-    updateTimeOffset();  // set summer/winter time
+    if (connectToWifi(savedSsid, savedPass)) {
+      // Start NTP client
+      timeClient.begin();
+      delay(1000);         // wait time from server
+      updateTimeOffset();  // set summer/winter time
+      timeClient.update();
+      timeString = timeClient.getFormattedTime();
+    };
   }
 }
 
@@ -297,30 +302,12 @@ void loop() {
           case (0):
             buildEqualizer(ledStripNumber, ledsConfiguration1, matrix);
             break;
-          case (1):
-            // buildEqualizer(ledStripNumber, ledsConfiguration2, matrix);
-            break;
-          case (2):
-            //
-            break;
-          case (3):
-            //
-            break;
         }
         break;
       case (1):  // Time
         switch (ledStripNumber) {
           case (0):
             buildTime(ledStripNumber, timeString, matrix);
-            break;
-          case (1):
-            buildTime(ledStripNumber, timeString, matrix);
-            break;
-          case (2):
-            //
-            break;
-          case (3):
-            //
             break;
         }
         break;
@@ -329,19 +316,18 @@ void loop() {
           case (0):
             buildLight(ledStripNumber, matrix);
             break;
-          case (1):
-            buildLight(ledStripNumber, matrix);
-            break;
-          case (2):
-            //
-            break;
-          case (3):
-            //
-            break;
         }
         break;
       case (3):  // Game
         // buildGame(ledStripNumber);
+        break;
+      case (4):  // Full screen Fireplace
+        fireplace(ledStripNumber, ledsConfiguration1, matrix);
+        delay(30);
+        break;
+      case (5):  // Fireplace
+        drawCampfire(ledStripNumber, ledsConfiguration1, matrix);
+        delay(30);
         break;
     }
 
@@ -371,8 +357,14 @@ void loop() {
   }
 
   // update time
-  EVERY_N_MILLISECONDS(UPDATE_TIME_LOOP){
+  EVERY_N_MILLISECONDS(UPDATE_TIME_LOOP) {
     timeString = timeClient.getFormattedTime();
+
+    if (LED_SETTINGS_VALUE[0][6]) {
+      int photoResistorValue = analogRead(PHOTO_RESISTOR_PIN);  // 0 - 4095
+      int newBrightness = map(photoResistorValue, 0, 4095, 1, 12);
+      FastLED.setBrightness(BRIGHTNESS_SETTINGS[newBrightness]);
+    }
   }
 
   EVERY_N_MILLISECONDS(CONFIRM_CLICK_ACTION_TIME) {
@@ -383,92 +375,7 @@ void loop() {
     }
   }
 
-  EVERY_N_MILLISECONDS(UPDATE_TIME_LOOP*60){    
+  EVERY_N_MILLISECONDS(UPDATE_TIME_LOOP * 60) {
     timeClient.update();
   }
 }
-
-// WiFi Access Point
-// TODO move to separate file
-const char* wifiConfigPage = R"(
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Wi-Fi Configuration</title>
-      <style>
-          body {
-              font-family: Arial, sans-serif;
-              margin: 0;
-              padding: 0;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              height: 100vh;
-              background: linear-gradient(to bottom, #9fb9d5, #d2e0c3) !important;
-          }
-
-          .container {
-              background-color: white;
-              padding: 20px;
-              border-radius: 8px;
-              box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-              max-width: 400px;
-              width: 100%;
-          }
-
-          h2 {
-              text-align: center;
-              margin-bottom: 20px;
-          }
-
-          label {
-              font-size: 16px;
-              margin-bottom: 5px;
-              display: inline-block;
-          }
-
-          input[type="text"] {
-              width: 100%;
-              padding: 10px;
-              margin: 10px 0;
-              border: 1px solid #ccc;
-              border-radius: 4px;
-              box-sizing: border-box;
-          }
-
-          input[type="submit"] {
-              width: 100%;
-              background-color: #4CAF50;
-              color: white;
-              padding: 12px 20px;
-              border: none;
-              border-radius: 4px;
-              cursor: pointer;
-              font-size: 16px;
-          }
-
-          input[type="submit"]:hover {
-              background-color: #45a049;
-          }
-      </style>
-  </head>
-  <body>
-  <div class="container">
-      <h2>Wi-Fi Configuration</h2>
-      <form action="/configure" method="post">
-          <label for="ssid">SSID:</label><br>
-          <input type="text" id="ssid" name="ssid"><br><br>
-          <label for="password">Password:</label><br>
-          <input type="text" id="password" name="password"><br><br>
-          <input type="submit" value="Connect">
-      </form>
-      <br>
-      <form action="/restart" method="post">
-          <input type="submit" value="Restart ESP">
-      </form>
-  </div>
-  </body>
-</html>
-)";

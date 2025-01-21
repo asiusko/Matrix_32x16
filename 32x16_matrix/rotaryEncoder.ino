@@ -7,7 +7,7 @@ void rotaryOnButtonClick() {
 
   lastTimePressed = millis();
 
-  if (ledSettingProperty == 6) {
+  if (ledSettingProperty == settingsPropsLength) {
     // exit to change led level
     encoderMode = 0;
     encoderBtnMode = 1;
@@ -46,8 +46,8 @@ void changeMode(byte value) {
 
 byte changeModeValue(byte value) {
   switch (ledSettingProperty) {
-    case 0:  // MODE
-      value = value > 3 ? 3 : value;
+    case 0:  // LED_MODE
+      value = value > 5 ? 5 : value;
       value = value < 0 ? 0 : value;
       break;
     case 1:  // BRIGHTNESS
@@ -67,11 +67,13 @@ byte changeModeValue(byte value) {
     case 5:  // NOISE_LEVEL
       value = value > 0 ? value : 1;
       break;
-    case 6:  // EXIT
+    case 6:  // NIGHT MODE
+      value = LED_SETTINGS_VALUE[currentSetting][ledSettingProperty] == 1 ? 0 : 1;
+    case 7:  // EXIT
       break;
   }
 
-  if (ledSettingProperty != 6) LED_SETTINGS_VALUE[currentSetting][ledSettingProperty] = value;
+  if (ledSettingProperty != 7) LED_SETTINGS_VALUE[currentSetting][ledSettingProperty] = value;
 
   return value;
 }
