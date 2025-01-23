@@ -35,16 +35,22 @@ You can restrict the max current for a strip/matrix on the program level.
 - If failed to mount SPIFFS file system. Run **[formatSPIFFS.ino](tools/formatSPIFFS/formatSPIFFS.ino)**
 - ESP-WROOM-32D configuration ![configuration](images/0004.png)
 
+### WiFi and WEB
+- The ESP initially loads WiFi access point with predefined SSID and PASS check AP_WIFI_SSID and AP_WIFI_PASSWORD.
+- In serial logs you can see the IP address, usually its 192.168.4.1
+- To connect to the wifi just enter ssid and pass which will be saved in the internal memory for future connections.
+![login_page](images/login_page.png)
+- Tetris will start the game on the matrix and navigate to the control joystick, please use a mobile horizontal mode to display it correctly(TODO responsive design).
+![joystick](images/joystick.png)
+
 ### TODO:
-- WEB control
-- Add sound output
+- Sound output
 - Vertical/Horizontal mode
-- IR control
-- Light mode
-- Time Mode
 - Connect with the home weather station
 - Games
 - More effects
+- Responsive design and more controls from WEB
+- Documentation
 
 ### License
 

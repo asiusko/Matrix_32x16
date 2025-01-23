@@ -73,7 +73,11 @@ const char* wifiConfigPage = R"(
           <input type="submit" value="Connect">
       </form>
       <br>
-      <form action="/restart" method="post">
+      <form action="/games/tetris" method="get">
+          <input type="submit" value="Tetris">
+      </form>
+      <br>
+      <form action="/restart" method="get">
           <input type="submit" value="Restart ESP">
       </form>
   </div>
