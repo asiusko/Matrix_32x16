@@ -16,6 +16,7 @@
 #include <WiFiUdp.h>
 
 #include <wifiConfigPage.h>
+#include <wifiJoystickPage.h>
 
 #define BOARD_LED_PIN 2    // Built-in LED on most ESP32 boards 2 pin
 #define AUDIO_IN_PIN 35    // Audio signal
@@ -172,6 +173,7 @@ HTTPClient http;
 WiFiClient client;
 
 String timeString = "";
+String gameBtnAction = "";
 
 // has to be before setup()
 void IRAM_ATTR readEncoderISR() {
@@ -268,14 +270,6 @@ void setup() {
     } else {
       logLn("Unable to Create AP");
     }
-
-    // Route for the setup WiFi page
-    server.on("/", HTTP_GET, defineWiFi);
-    // Route for getting data
-    server.on("/configure", HTTP_POST, saveDataAndConnectToWifi);
-    // Route to restart
-    server.on("/restart", HTTP_POST, restartESP);
-    server.begin();
   } else {
     // Connect to Wi-Fi
     if (connectToWifi(savedSsid, savedPass)) {
@@ -285,8 +279,11 @@ void setup() {
       updateTimeOffset();  // set summer/winter time
       timeClient.update();
       timeString = timeClient.getFormattedTime();
+      Serial.println(WiFi.localIP());
     };
   }
+
+  startServerListener();
 }
 
 void loop() {
@@ -319,7 +316,8 @@ void loop() {
         }
         break;
       case (3):  // Game
-        // buildGame(ledStripNumber);
+        buildGame(ledStripNumber, ledsConfiguration1, matrix, gameBtnAction);
+        gameBtnAction = " ";
         break;
       case (4):  // Full screen Fireplace
         fireplace(ledStripNumber, ledsConfiguration1, matrix);
