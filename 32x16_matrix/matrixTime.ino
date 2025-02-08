@@ -1,4 +1,4 @@
-void buildTime(byte led_strip_number, String time_string, FastLED_NeoMatrix* matrix) {
+void buildTime(int led_strip_number, String time_string, FastLED_NeoMatrix* matrix) {
   matrix->setTextWrap(false);
   matrix->setFont(&TomThumb);
   matrix->setTextColor(matrix->Color(255, 255, 255));

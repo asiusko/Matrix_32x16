@@ -1,3 +1,5 @@
+// TODO move to rotary encoder
+
 void sensorButtonSingleClick() {
   // cancel actions - single click
   if (isReadyToResetWiFi) {

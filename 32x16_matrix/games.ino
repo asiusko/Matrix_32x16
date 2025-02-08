@@ -1,4 +1,4 @@
-void buildGame(byte led_strip_number, CRGB* ledsConfiguration, FastLED_NeoMatrix* matrix, String action) {
+void buildGame(int led_strip_number, CRGB* ledsConfiguration, FastLED_NeoMatrix* matrix, String action) {
   String localIP = WiFi.localIP().toString();
 
   matrix->setTextWrap(false);

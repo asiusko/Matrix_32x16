@@ -1,6 +1,6 @@
 void startGameTetris() {
   startGameControl();
-  LED_SETTINGS_VALUE[0][0] = 3;
+  SETTINGS_VALUE[0][0] = 3;
 }
 
 void startGameControl() {

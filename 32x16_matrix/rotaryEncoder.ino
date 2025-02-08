@@ -20,7 +20,7 @@ void rotaryOnButtonClick() {
     encoderBtnMode = 0;
   } else {
     // SELECT
-    rotaryEncoder.setEncoderValue(LED_SETTINGS_VALUE[currentSetting][ledSettingProperty]);
+    rotaryEncoder.setEncoderValue(SETTINGS_VALUE[currentSetting][ledSettingProperty]);
     encoderMode = 2;
     encoderBtnMode = 1;
   }
@@ -28,23 +28,23 @@ void rotaryOnButtonClick() {
   renderOLED();
 }
 
-void changeLed(byte value) {
+void changeLed(int value) {
   currentSetting = value;
 
   currentSetting = currentSetting > LED_STRIP_NUMBERS ? LED_STRIP_NUMBERS : currentSetting;
   currentSetting = currentSetting < 0 ? 0 : currentSetting;
 }
 
-void changeMode(byte value) {
+void changeMode(int value) {
   ledSettingProperty = value;
 
   ledSettingProperty = ledSettingProperty > settingsPropsLength ? settingsPropsLength : ledSettingProperty;
   ledSettingProperty = ledSettingProperty < 0 ? 0 : ledSettingProperty;
 
-  newEncoderValue = LED_SETTINGS_VALUE[currentSetting][ledSettingProperty];
+  newEncoderValue = SETTINGS_VALUE[currentSetting][ledSettingProperty];
 }
 
-byte changeModeValue(byte value) {
+int changeModeValue(int value) {
   switch (ledSettingProperty) {
     case 0:  // LED_MODE
       value = value > 5 ? 5 : value;
@@ -62,18 +62,24 @@ byte changeModeValue(byte value) {
       value = value < 1 ? 1 : value;
       break;
     case 4:  // AUTO_CHANGE
-      value = LED_SETTINGS_VALUE[currentSetting][ledSettingProperty] == 1 ? 0 : 1;
+      value = SETTINGS_VALUE[currentSetting][ledSettingProperty] == 1 ? 0 : 1;
       break;
     case 5:  // NOISE_LEVEL
       value = value > 0 ? value : 1;
       break;
     case 6:  // NIGHT MODE
-      value = LED_SETTINGS_VALUE[currentSetting][ledSettingProperty] == 1 ? 0 : 1;
-    case 7:  // EXIT
+      value = SETTINGS_VALUE[currentSetting][ledSettingProperty] == 1 ? 0 : 1;
+    case 7:  // VOLUME
+      value = value * 2;
+      value = value > 25 ? 25 : value;
+      value = value < 1 ? 1 : value;
+      audio.setVolume((int)value);
+    case 8:  // EXIT
       break;
   }
 
-  if (ledSettingProperty != 7) LED_SETTINGS_VALUE[currentSetting][ledSettingProperty] = value;
+  // save a setiing if is not the exit action
+  if (ledSettingProperty != settingsPropsLength) SETTINGS_VALUE[currentSetting][ledSettingProperty] = value;
 
   return value;
 }
@@ -82,7 +88,7 @@ void rotaryLoop() {
   if (rotaryEncoder.isEncoderButtonClicked()) {
     rotaryOnButtonClick();
   } else if (rotaryEncoder.encoderChanged()) {
-    byte encoderValue = rotaryEncoder.readEncoder();
+    int encoderValue = rotaryEncoder.readEncoder();
 
     switch (encoderMode) {
       // Select LED

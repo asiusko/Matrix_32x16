@@ -1,8 +1,8 @@
-void buildEqualizer(byte led_strip_number, CRGB* ledsConfiguration, FastLED_NeoMatrix* matrix) {
+void buildEqualizer(int led_strip_number, CRGB* ledsConfiguration, FastLED_NeoMatrix* matrix) {
   // settings
-  byte peaksMode = LED_SETTINGS_VALUE[led_strip_number][2];
-  byte equalizerMode = LED_SETTINGS_VALUE[led_strip_number][3];
-  byte noiseLevel = LED_SETTINGS_VALUE[led_strip_number][5];
+  int peaksMode = SETTINGS_VALUE[led_strip_number][2];
+  int equalizerMode = SETTINGS_VALUE[led_strip_number][3];
+  int noiseLevel = SETTINGS_VALUE[led_strip_number][5];
 
   // Don't clear screen if waterfall pattern, be sure to change this is you change the patterns / order
   if (equalizerMode != 6) FastLED.clear();
@@ -52,7 +52,7 @@ void buildEqualizer(byte led_strip_number, CRGB* ledsConfiguration, FastLED_NeoM
 
 
   // Process the FFT data into bar heights
-  for (byte band = 0; band < LED_MAX_BANDS; band++) {
+  for (int band = 0; band < LED_MAX_BANDS; band++) {
 
     // Scale the bars for the display
     int barHeight = bandValues[band] / (FFT_AMPLITUDE * noiseLevel);
@@ -109,7 +109,7 @@ void buildEqualizer(byte led_strip_number, CRGB* ledsConfiguration, FastLED_NeoM
 }
 
 // PATTERNS
-void rainbowBars(byte led_strip_number, int band, int barHeight, FastLED_NeoMatrix* matrix) {
+void rainbowBars(int led_strip_number, int band, int barHeight, FastLED_NeoMatrix* matrix) {
   int xStart = LED_BAR_WIDTHS[led_strip_number] * band;
   for (int x = xStart; x < xStart + LED_BAR_WIDTHS[led_strip_number]; x++) {
     for (int y = LED_TOP_ELEMENTS[led_strip_number]; y >= LED_TOP_ELEMENTS[led_strip_number] - barHeight; y--) {
@@ -118,7 +118,7 @@ void rainbowBars(byte led_strip_number, int band, int barHeight, FastLED_NeoMatr
   }
 }
 
-void purpleBars(byte led_strip_number, int band, int barHeight, FastLED_NeoMatrix* matrix) {
+void purpleBars(int led_strip_number, int band, int barHeight, FastLED_NeoMatrix* matrix) {
   int xStart = LED_BAR_WIDTHS[led_strip_number] * band;
   for (int x = xStart; x < xStart + LED_BAR_WIDTHS[led_strip_number]; x++) {
     for (int y = LED_TOP_ELEMENTS[led_strip_number]; y >= LED_TOP_ELEMENTS[led_strip_number] - barHeight; y--) {
@@ -127,7 +127,7 @@ void purpleBars(byte led_strip_number, int band, int barHeight, FastLED_NeoMatri
   }
 }
 
-void changingBars(byte led_strip_number, int band, int barHeight, FastLED_NeoMatrix* matrix) {
+void changingBars(int led_strip_number, int band, int barHeight, FastLED_NeoMatrix* matrix) {
   int xStart = LED_BAR_WIDTHS[led_strip_number] * band;
   for (int x = xStart; x < xStart + LED_BAR_WIDTHS[led_strip_number]; x++) {
     for (int y = LED_TOP_ELEMENTS[led_strip_number]; y >= LED_TOP_ELEMENTS[led_strip_number] - barHeight; y--) {
@@ -136,7 +136,7 @@ void changingBars(byte led_strip_number, int band, int barHeight, FastLED_NeoMat
   }
 }
 
-void centerBars(byte led_strip_number, int band, int barHeight, FastLED_NeoMatrix* matrix) {
+void centerBars(int led_strip_number, int band, int barHeight, FastLED_NeoMatrix* matrix) {
   int xStart = LED_BAR_WIDTHS[led_strip_number] * band;
   for (int x = xStart; x < xStart + LED_BAR_WIDTHS[led_strip_number]; x++) {
     if (barHeight % 2 == 0) barHeight--;
@@ -148,7 +148,7 @@ void centerBars(byte led_strip_number, int band, int barHeight, FastLED_NeoMatri
   }
 }
 
-void whitePeak(byte led_strip_number, int band, FastLED_NeoMatrix* matrix) {
+void whitePeak(int led_strip_number, int band, FastLED_NeoMatrix* matrix) {
   int xStart = LED_BAR_WIDTHS[led_strip_number] * band;
   int peakHeight = LED_TOP_ELEMENTS[led_strip_number] - peak[band] - 1;
   for (int x = xStart; x < xStart + LED_BAR_WIDTHS[led_strip_number]; x++) {
@@ -156,7 +156,7 @@ void whitePeak(byte led_strip_number, int band, FastLED_NeoMatrix* matrix) {
   }
 }
 
-void outrunPeak(byte led_strip_number, int band, FastLED_NeoMatrix* matrix) {
+void outrunPeak(int led_strip_number, int band, FastLED_NeoMatrix* matrix) {
   int xStart = LED_BAR_WIDTHS[led_strip_number] * band;
   int peakHeight = LED_TOP_ELEMENTS[led_strip_number] - peak[band] - 1;
   for (int x = xStart; x < xStart + LED_BAR_WIDTHS[led_strip_number]; x++) {
@@ -164,7 +164,7 @@ void outrunPeak(byte led_strip_number, int band, FastLED_NeoMatrix* matrix) {
   }
 }
 
-void waterfall(byte led_strip_number, int band, CRGB* ledsConfiguration, FastLED_NeoMatrix* matrix) {
+void waterfall(int led_strip_number, int band, CRGB* ledsConfiguration, FastLED_NeoMatrix* matrix) {
   int xStart = LED_BAR_WIDTHS[led_strip_number] * band;
   double highestBandValue = 60000;  // to calibrate the waterfall
 

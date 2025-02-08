@@ -4,7 +4,6 @@ void renderOLED() {
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(0, 0);
   display.println(SETTINGS[currentSetting]);
-
   if (currentSetting == 4) {
     // Logs mode
     display.setTextSize(1);
@@ -14,7 +13,7 @@ void renderOLED() {
     display.setTextSize(1);
     display.println();
     display.println("------------------");
-    display.println(LED_MODE[LED_SETTINGS_VALUE[currentSetting][0]]);
+    display.println(LED_MODE[SETTINGS_VALUE[currentSetting][0]]);
   } else if (encoderMode == 1) {
     // LED settings menu
     display.setTextSize(1);
@@ -25,7 +24,7 @@ void renderOLED() {
     nextMenuItem.toLowerCase();
     display.println(prevMenuItem);
     display.println();
-    display.println(">" + String(ledSettingProperty + 1) + " " + LED_SETTINGS[ledSettingProperty] + ": " + String(LED_SETTINGS_VALUE[currentSetting][ledSettingProperty]));
+    display.println(">" + String(ledSettingProperty + 1) + " " + LED_SETTINGS[ledSettingProperty] + ": " + String(SETTINGS_VALUE[currentSetting][ledSettingProperty]));
     display.println();
     display.println(nextMenuItem);
   } else if (encoderMode == 2) {
@@ -43,6 +42,5 @@ void renderOLED() {
       display.println(newEncoderValue);
     }
   }
-
   display.display();
 }

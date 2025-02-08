@@ -2,9 +2,9 @@
 #define SPARKING 120
 #define FIRE_HEIGHT 15
 
-void fireplace(byte led_strip_number, CRGB* ledsConfiguration, FastLED_NeoMatrix* matrix) {
+void fireplace(int led_strip_number, CRGB* ledsConfiguration, FastLED_NeoMatrix* matrix) {
   // TODO rework
-  static byte heat[FIRE_HEIGHT][32];
+  static int heat[FIRE_HEIGHT][32];
 
   int matrixWidth = matrix->width();
   int matrixHeight = matrix->height();
@@ -34,7 +34,7 @@ void fireplace(byte led_strip_number, CRGB* ledsConfiguration, FastLED_NeoMatrix
   // Step 4: Map heat to LED colours
   for (int col = 0; col < matrixWidth; col++) {
     for (int row = 0; row < matrixHeight; row++) {
-      byte colourIndex = scale8(heat[row][col], 240);
+      int colourIndex = scale8(heat[row][col], 240);
       matrix->drawPixel(col, row, HeatColor(colourIndex));
     }
   }
@@ -60,7 +60,7 @@ const int patternPowerMask[16][32] = {
     {128, 128, 128, 64 , 128, 255, 128, 128, 128, 128, 64 , 128, 64 , 128, 128, 64 , 128, 128, 128, 128, 255, 128, 128, 128, 128, 64 , 128, 128, 128, 64 , 32 , 64 },
 };
 
-void drawCampfire(byte led_strip_number, CRGB* ledsConfiguration, FastLED_NeoMatrix* matrix) {
+void drawCampfire(int led_strip_number, CRGB* ledsConfiguration, FastLED_NeoMatrix* matrix) {
   static uint8_t heat[16][32];
 
   // Step 1: Cool down every cell a little
